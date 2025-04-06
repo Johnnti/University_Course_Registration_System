@@ -62,7 +62,7 @@ class Course:
         self.credits = credits
         
         if not is_within_allowed_time(schedule):
-            raise ValueError(f"Course {course_id} schedule {schedule} is out of allowed hours or on a weekend.")
+            raise ValueError(f"Course {course_id} schedule {schedule} is out of allowed hours or occurs on a weekend on a weekend.")
 
 class EnrollmentSystem:
     def __init__(self):
