@@ -523,19 +523,24 @@ class LoginScreen(BaseScreen):
         self.name_entry.delete(0, tk.END)
         self.clear_status()
 
+    # Updated login_student function
     def login_student(self):
         self.clear_status()
-        student_id = self.student_id_entry.get().strip()
+        student_id = self.student_id_entry.get().strip().upper()  # Ensure Student ID is case-insensitive
         name = self.name_entry.get().strip()
+
         if not student_id or not name:
             self.controller.set_status("LoginScreen", "Please enter both Student ID and Name.")
             return
+
         if student_id in self.system.students:
+            # Check if the name matches the registered name
             if self.system.students[student_id].name.lower() == name.lower():
                 self.controller.login_successful(student_id)
             else:
                 self.controller.set_status("LoginScreen", "Incorrect name for this Student ID.")
         else:
+            # If Student ID is not found, prompt the user to register
             self.controller.set_status("LoginScreen", "Student ID not found. Please register or check the ID.")
 
     def go_to_register(self):
@@ -592,16 +597,16 @@ class RegistrationScreen(BaseScreen):
         self.name_entry.delete(0, tk.END)
         self.clear_status()
 
+    # Updated complete_registration function
     def complete_registration(self):
         self.clear_status()
-        student_id = self.student_id_entry.get().strip()
+        student_id = self.student_id_entry.get().strip().upper()  # Ensure Student ID is case-insensitive
         name = self.name_entry.get().strip()
 
         try:
-            # Validate student ID: must be alphanumeric and convert to uppercase
+            # Validate student ID: must be alphanumeric
             if not student_id.isalnum():
-                raise ValueError("Student ID cannot contain symbols.")
-            student_id = student_id.upper()
+                raise ValueError("Student ID must be alphanumeric.")
 
             # Validate name: must only contain letters
             if not name.replace(" ", "").isalpha():  # Allow spaces in names
@@ -610,10 +615,14 @@ class RegistrationScreen(BaseScreen):
             if not student_id or not name:
                 raise ValueError("Please enter both Student ID and Name.")
 
+            if student_id in self.system.students:
+                raise ValueError(f"Student ID '{student_id}' is already registered. Please log in.")
+
+            # Add the new student to the system
             self.system.add_student(student_id, name)
             self.controller.set_status("RegistrationScreen", f"Student '{name}' registered successfully! Logging in...", is_error=False)
-            
-            # Add a small delay before switching screen to show message
+
+            # Add a small delay before switching screen to show the success message
             self.after(1500, lambda: self.controller.login_successful(student_id))
             self.clear_entries()
         except ValueError as e:
