@@ -302,18 +302,28 @@ class RegistrationApp:
             )
 
         # Button Styles
-        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=(10, 5), relief="flat", borderwidth=1)
+        style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=(10, 5), relief="flat", borderwidth=1,
+                        foreground=self.primary_color, background=self.light_text_color)  # Explicitly set colors
         style.map("TButton",
-            background=[('active', self.secondary_color), ('!active', self.bg_color)],
-            foreground=[('!active', self.primary_color)],
-            bordercolor=[('!active', self.primary_color)]
-            )
+                  background=[('active', self.secondary_color), ('!active', self.light_text_color)],
+                  foreground=[('!active', self.primary_color)],
+                  bordercolor=[('!active', self.primary_color)]
+                  )
 
-        style.configure("Accent.TButton", font=("Segoe UI", 11, "bold"), background=self.primary_color, foreground=self.light_text_color, padding=(12,6))
+        style.configure("Accent.TButton", font=("Segoe UI", 11, "bold"), background=self.primary_color, foreground=self.light_text_color, padding=(12, 6))
         style.map("Accent.TButton",
-            background=[('active', '#003c75'), ('!disabled', self.primary_color)], # Darker blue on hover/press
-            relief=[('pressed', 'sunken'), ('!pressed', 'raised')]
-            )
+                  background=[('active', '#003c75'), ('!disabled', self.primary_color)],  # Darker blue on hover/press
+                  foreground=[('!disabled', self.light_text_color)],  # Ensure text is visible
+                  relief=[('pressed', 'sunken'), ('!pressed', 'raised')]
+                  )
+
+        # Tab Styles (if applicable)
+        style.configure("TNotebook.Tab", font=("Segoe UI", 10), padding=(10, 5),
+                        foreground=self.primary_color, background=self.light_text_color)  # Explicitly set colors
+        style.map("TNotebook.Tab",
+                  background=[('selected', self.secondary_color), ('!selected', self.light_text_color)],
+                  foreground=[('selected', self.primary_color), ('!selected', self.primary_color)]
+                  )
 
         # Title & Header Styles
         style.configure("Header.TFrame", background=self.primary_color) # Frame for main titles
@@ -359,7 +369,7 @@ class RegistrationApp:
         # --- Frame Dictionary ---
         self.frames = {}
         # Order matters if some frames depend on styles defined before them
-        for F in (WelcomeScreen, LoginScreen, RegistrationScreen, CourseScreen):
+        for F in (WelcomeScreen, LoginScreen, RegistrationScreen, CourseScreen, TimetableScreen):
             page_name = F.__name__
             # Use grid layout for frames within main_container
             frame = F(parent=self.main_container, controller=self)
@@ -626,9 +636,9 @@ class CourseScreen(BaseScreen):
         paned_window.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # --- Available Courses Section ---
-        available_outer_frame = ttk.Frame(paned_window, padding=0) # Container for label frame + button
-        available_frame = ttk.LabelFrame(available_outer_frame, text="Available Courses", padding=(10,5))
-        available_frame.pack(fill=tk.BOTH, expand=True, pady=(0,5)) # Label frame takes most space
+        available_outer_frame = ttk.Frame(paned_window, padding=0)  # Container for label frame + button
+        available_frame = ttk.LabelFrame(available_outer_frame, text="Available Courses", padding=(10, 5))
+        available_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))  # Label frame takes most space
 
         paned_window.add(available_outer_frame)
 
@@ -656,8 +666,8 @@ class CourseScreen(BaseScreen):
 
         # --- Enrolled Courses Section ---
         enrolled_outer_frame = ttk.Frame(paned_window, padding=0)
-        enrolled_frame = ttk.LabelFrame(enrolled_outer_frame, text="Enrolled Courses", padding=(10,5))
-        enrolled_frame.pack(fill=tk.BOTH, expand=True, pady=(0,5))
+        enrolled_frame = ttk.LabelFrame(enrolled_outer_frame, text="Enrolled Courses", padding=(10, 5))
+        enrolled_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
 
         paned_window.add(enrolled_outer_frame)
 
@@ -681,9 +691,17 @@ class CourseScreen(BaseScreen):
         drop_button = ttk.Button(enrolled_outer_frame, text="Drop", command=self.drop_selected_course, style="TButton", width=10)
         drop_button.pack(pady=5, fill=tk.X)
 
+        # Set initial sash position to divide space evenly
+        controller.root.update_idletasks()  # Ensure the window is fully rendered before setting sash position
+        paned_window.sash_place(0, controller.root.winfo_width() // 2, 0)  # Divide the window into two equal halves
+
         # --- Status Label at the bottom ---
         self.status_label = self.create_status_label(content_frame)
         self.status_label.pack(pady=(10, 0), fill=tk.X)
+
+        # Add a button to view the timetable
+        timetable_button = ttk.Button(content_frame, text="View Timetable", command=lambda: controller.show_frame("TimetableScreen"), style="TButton")
+        timetable_button.pack(pady=(10, 0), fill=tk.X)
 
         # Initial data load will happen in refresh_data
         self.refresh_data()
@@ -781,6 +799,75 @@ class CourseScreen(BaseScreen):
             self.controller.set_status("CourseScreen", str(e))
         except Exception as e:
             self.controller.set_status("CourseScreen", f"Error dropping course: {e}")
+
+class TimetableScreen(BaseScreen):
+    """Screen to display the student's timetable."""
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
+        self.create_header("Student Timetable")
+
+        # Timetable content frame
+        timetable_frame = ttk.Frame(self.content_area, padding=(10, 10))
+        timetable_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Treeview for timetable
+        cols = ('day', 'time', 'course', 'instructor', 'credits')
+        self.timetable_tree = ttk.Treeview(timetable_frame, columns=cols, show='headings', selectmode='none')
+        self.timetable_tree.heading('day', text='Day', anchor=tk.W)
+        self.timetable_tree.heading('time', text='Time', anchor=tk.W)
+        self.timetable_tree.heading('course', text='Course', anchor=tk.W)
+        self.timetable_tree.heading('instructor', text='Instructor', anchor=tk.W)
+        self.timetable_tree.heading('credits', text='Credits', anchor=tk.CENTER)
+
+        self.timetable_tree.column('day', width=100, stretch=False)
+        self.timetable_tree.column('time', width=150)
+        self.timetable_tree.column('course', width=200)
+        self.timetable_tree.column('instructor', width=150)
+        self.timetable_tree.column('credits', width=70, anchor=tk.CENTER)
+
+        self.timetable_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Back button to return to the enrollment page
+        back_button = ttk.Button(timetable_frame, text="Back to Enrollment", command=lambda: controller.show_frame("CourseScreen"), style="TButton")
+        back_button.pack(pady=10)
+
+    def refresh_data(self):
+        """Refresh the timetable data."""
+        if self.controller.current_student_id:
+            student_id = self.controller.current_student_id
+            try:
+                student = self.system.students[student_id]
+                enrolled_courses = self.system.get_student_courses(student_id)
+
+                # Clear existing timetable data
+                for item in self.timetable_tree.get_children():
+                    self.timetable_tree.delete(item)
+
+                # Define the order of days
+                day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+                # Sort courses by day (using the defined order) and time
+                sorted_courses = sorted(
+                    enrolled_courses,
+                    key=lambda course: (day_order.index(course.schedule[0]), course.schedule[1])
+                )
+
+                # Populate timetable with sorted courses
+                for course in sorted_courses:
+                    day, start_time, end_time = course.schedule
+                    self.timetable_tree.insert('', tk.END, values=(
+                        day,
+                        f"{start_time} - {end_time}",
+                        course.name,
+                        course.instructor,
+                        course.credits
+                    ))
+
+                self.clear_status()
+            except Exception as e:
+                self.controller.set_status("TimetableScreen", f"Error loading timetable: {e}")
+        else:
+            self.controller.set_status("TimetableScreen", "No student logged in.")
 
 if __name__ == "__main__":
     root = tk.Tk()
