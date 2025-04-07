@@ -169,8 +169,20 @@ class EnrollmentSystem:
         except IOError as e: print(f"Error saving enrollments: {e}")
 
     def add_student(self, student_id, name):
-        if not student_id or not name: raise ValueError("Student ID and Name cannot be empty.")
-        if student_id in self.students: raise ValueError(f"Student ID '{student_id}' already exists.")
+        # Validate student ID: must be alphanumeric and convert to uppercase
+        if not student_id.isalnum():
+            raise ValueError("Student ID must be alphanumeric.")
+        student_id = student_id.upper()
+
+        # Validate name: must only contain letters
+        if not name.replace(" ", "").isalpha():  # Allow spaces in names
+            raise ValueError("Name must only contain letters.")
+
+        if not student_id or not name:
+            raise ValueError("Student ID and Name cannot be empty.")
+        if student_id in self.students:
+            raise ValueError(f"Student ID '{student_id}' already exists.")
+        
         self.students[student_id] = Student(student_id, name)
         self.save_students()
         print(f"Student '{name}' ({student_id}) added.")
@@ -584,17 +596,30 @@ class RegistrationScreen(BaseScreen):
         self.clear_status()
         student_id = self.student_id_entry.get().strip()
         name = self.name_entry.get().strip()
-        if not student_id or not name:
-            self.controller.set_status("RegistrationScreen", "Please enter both Student ID and Name.")
-            return
+
         try:
+            # Validate student ID: must be alphanumeric and convert to uppercase
+            if not student_id.isalnum():
+                raise ValueError("Student ID cannot contain symbols.")
+            student_id = student_id.upper()
+
+            # Validate name: must only contain letters
+            if not name.replace(" ", "").isalpha():  # Allow spaces in names
+                raise ValueError("Name must only contain letters.")
+
+            if not student_id or not name:
+                raise ValueError("Please enter both Student ID and Name.")
+
             self.system.add_student(student_id, name)
             self.controller.set_status("RegistrationScreen", f"Student '{name}' registered successfully! Logging in...", is_error=False)
+            
             # Add a small delay before switching screen to show message
             self.after(1500, lambda: self.controller.login_successful(student_id))
             self.clear_entries()
-        except ValueError as e: self.controller.set_status("RegistrationScreen", str(e))
-        except Exception as e: self.controller.set_status("RegistrationScreen", f"An unexpected error occurred: {e}")
+        except ValueError as e:
+            self.controller.set_status("RegistrationScreen", str(e))
+        except Exception as e:
+            self.controller.set_status("RegistrationScreen", f"An unexpected error occurred: {e}")
 
 class CourseScreen(BaseScreen):
     def __init__(self, parent, controller):
