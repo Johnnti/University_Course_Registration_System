@@ -210,31 +210,28 @@ class EnrollmentSystem:
         print(f"Student '{student_id}' enrolled in '{course_id}'.")
 
     def drop_course(self, student_id, course_id):
-        if student_id not in self.students: raise ValueError(f"Student '{student_id}' does not exist.")
+        if student_id not in self.students:
+            raise ValueError(f"Student '{student_id}' does not exist.")
         student = self.students[student_id]
-        if course_id not in student.registered_courses: raise ValueError(f"Not enrolled in course '{course_id}'.")
+        if course_id not in student.registered_courses:
+            raise ValueError(f"Not enrolled in course '{course_id}'.")
 
         course_exists = course_id in self.courses
-        credits_to_drop = self.courses[course_id].credits if course_exists else 0
 
+        # Calculate current credits
         current_credits = sum(self.courses[cid].credits for cid in student.registered_courses if cid in self.courses)
         MIN_CREDITS = 9
-        # Allow dropping below minimum only if it's the last course or unavoidable
-        is_last_course = len(student.registered_courses) == 1
-        if not is_last_course and (current_credits - credits_to_drop) < MIN_CREDITS:
-                # Check if dropping ANY other course would also result in being below minimum
-                can_drop_safely = False
-                for other_cid in student.registered_courses:
-                    if other_cid != course_id and other_cid in self.courses:
-                        if (current_credits - self.courses[other_cid].credits) >= MIN_CREDITS:
-                            can_drop_safely = True
-                            break
-                if not can_drop_safely:
-                    raise ValueError(f"Cannot drop. Would fall below minimum {MIN_CREDITS} credits (Remaining: {current_credits - credits_to_drop}).")
 
+        # Remove the course from the student's registered courses
         student.registered_courses.remove(course_id)
         if course_exists:
-                self.courses[course_id].enrolled_students.discard(student_id) # Use discard
+            self.courses[course_id].enrolled_students.discard(student_id)  # Use discard to avoid KeyError
+
+        # Check if dropping the course goes below the minimum credits
+        new_credits = current_credits - (self.courses[course_id].credits if course_exists else 0)
+        if new_credits < MIN_CREDITS:
+            print(f"Warning: Dropping this course will reduce your total credits to {new_credits}, which is below the minimum allowable ({MIN_CREDITS}).")
+
         self.save_enrollments()
         print(f"Student '{student_id}' dropped course '{course_id}'.")
 
